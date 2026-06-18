@@ -82,71 +82,20 @@ Paste the raw URL and import the blueprint.
 
 ## Configuration
 
-### Weather Entity
+| Type | Default | Description |
+| --- | --- | --- |
+| Weather Entity | - | Select the weather entity that provides the hourly forecast data. |
+| Input Text Helper | - | Select the `input_text` helper used to store the last generated mowing plan. |
+| Input Boolean Helper | - | Optional `input_boolean` helper. When enabled, mowing slots for the current day will be skipped. |
+| Earliest Mowing Time | 08:00 | Start of the daily mowing window. Forecast hours before this time are ignored. |
+| Latest Mowing Time | 20:00 | End of the daily mowing window. Forecast hours after this time are ignored. |
+| Minimum Temperature | 8°C | Minimum outside temperature required for mowing. |
+| Maximum Temperature | 0°C (disabled) | Maximum outside temperature allowed for mowing.<br>Set this value to `0` to disable the upper temperature limit. |
+| Maximum Precipitation | 0.5mm | Maximum hourly precipitation amount allowed for mowing. |
+| Maximum Rain Probability | 75 % | Maximum rain probability allowed for mowing. |
+| Minimum Temperature / Dew Point Difference | 2°C | Minimum required difference between air temperature and dew point during the morning dew check period.<br>A smaller difference usually indicates a higher chance of wet grass. |
+| Morning Dew Check Until Hour | 10 | Morning hours before this time are checked for excessive dew.<br>Example: `10` means the dew check is active from `00:00` until `09:59`. |
 
-Select the weather entity that provides the hourly forecast data.
-
-### Last Applied Plan Storage
-
-Select the `input_text` helper used to store the last generated mowing plan.
-
-### Skip Today's Schedule
-
-Optional `input_boolean` helper. When enabled, mowing slots for the current day will be skipped.
-
-### Earliest Mowing Time
-
-Start of the daily mowing window. Forecast hours before this time are ignored.
-
-**Default:** `08:00`
-
-### Latest Mowing Time
-
-End of the daily mowing window. Forecast hours after this time are ignored.
-
-**Default:** `20:00`
-
-### Minimum Temperature
-
-Minimum outside temperature required for mowing.
-
-**Default:** `8 °C`
-
-### Maximum Temperature
-
-Maximum outside temperature allowed for mowing.
-
-Set this value to `0` to disable the upper temperature limit.
-
-**Default:** `0 °C` (disabled)
-
-### Maximum Precipitation
-
-Maximum hourly precipitation amount allowed for mowing.
-
-**Default:** `0.5 mm`
-
-### Maximum Rain Probability
-
-Maximum rain probability allowed for mowing.
-
-**Default:** `75 %`
-
-### Minimum Temperature / Dew Point Difference
-
-Minimum required difference between air temperature and dew point during the morning dew check period.
-
-A smaller difference usually indicates a higher chance of wet grass.
-
-**Default:** `2 °C`
-
-### Morning Dew Check Until Hour
-
-Morning hours before this time are checked for excessive dew.
-
-Example: `10` means the dew check is active from `00:00` until `09:59`.
-
-**Default:** `10`
 
 ## Notes
 
