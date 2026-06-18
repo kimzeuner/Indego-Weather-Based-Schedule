@@ -1,0 +1,312 @@
+blueprint:
+  name: Indego Weather-Based Mowing Schedule
+  description: "## Bosch Indego Weather-Based Mowing Schedule\n\n
+    ⚠️ BOSCH INDEGO INTEGRATION REQUIRED\n
+    https://github.com/WhyLev/Indego\n\n
+    Automatically generates and updates Bosch Indego mowing calendar slots
+    based on hourly weather forecasts.\n
+    Suitable mowing windows are determined using precipitation, rain probability, temperature, and dew conditions.\n
+    The blueprint updates the Indego weekly schedule only when changes are
+    detected, reducing unnecessary API calls.\n"
+  domain: automation
+  source_url: https://raw.githubusercontent.com/kimzeuner/Bosch-Indego-Automations/refs/heads/main/indego_weather_based_schedule.yaml
+  author: kimzeuner
+  homeassistant:
+    min_version: "2025.1.0"
+  input:
+    weather_entity:
+      name: 🌦️ Weather Entity
+      description: >
+        Weather entity providing the hourly forecast used to determine
+        suitable mowing windows.
+      selector:
+        entity:
+          filter:
+            - domain: weather
+
+    last_applied_plan_entity:
+      name: ⚙️ Last Applied Plan Storage
+      description: >
+        Input text helper used to store the last generated mowing plan.
+        Prevents unnecessary calendar updates when the calculated plan
+        has not changed.
+      selector:
+        entity:
+          filter:
+            - domain: input_text
+
+    skip_today_entity:
+      name: ⏱️ Skip Today's Schedule
+      description: >
+        Optional input_boolean helper. When enabled, all mowing slots
+        for the current day will be disabled while leaving the remaining
+        weekly schedule unchanged.
+      default: ""
+      selector:
+        entity:
+          filter:
+            - domain: input_boolean
+
+    day_start:
+      name: ⏱️ Earliest Mowing Time
+      description: >
+        Beginning of the daily time window in which mowing may be scheduled.
+        Forecast data outside this period will be ignored.
+      default: "08:00:00"
+      selector:
+        time:
+
+    day_end:
+      name: ⏱️ Latest Mowing Time
+      description: >
+        End of the daily time window in which mowing may be scheduled.
+        Forecast data outside this period will be ignored.
+      default: "20:00:00"
+      selector:
+        time:
+
+    min_temperature:
+      name: 🌡️ Minimum Temperature
+      description: >
+        Minimum air temperature required for mowing.
+        Hours below this temperature will be considered unsuitable.
+      default: 8
+      selector:
+        number:
+          min: -10
+          max: 30
+          step: 0.5
+          unit_of_measurement: "°C"
+
+    max_temperature:
+      name: 🌡️ Maximum Temperature
+      description: >
+        Maximum air temperature allowed for mowing.
+        Set to 0 to disable the upper temperature limit.
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 50
+          step: 1
+          unit_of_measurement: "°C"
+
+    max_precipitation:
+      name: 🌧️ Maximum Precipitation
+      description: >
+        Maximum hourly precipitation amount allowed for mowing.
+        Hours exceeding this value will be treated as rainy.
+      default: 0.5
+      selector:
+        number:
+          min: 0
+          max: 10
+          step: 0.1
+          unit_of_measurement: "mm"
+
+    max_rain_probability:
+      name: 🌧️ Maximum Rain Probability
+      description: >
+        Maximum forecast rain probability allowed for mowing.
+        Hours above this threshold will be considered unsuitable.
+      default: 75
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+
+    min_dew_gap:
+      name: 💧 Minimum Temperature / Dew Point Difference
+      description: >
+        Minimum required difference between air temperature and dew point
+        during the morning dew check period. Smaller values indicate
+        increased likelihood of wet grass.
+      default: 2
+      selector:
+        number:
+          min: 0
+          max: 10
+          step: 0.5
+          unit_of_measurement: "°C"
+
+    dew_check_before_hour:
+      name: ⏱️ Morning Dew Check Until Hour
+      description: >
+        Morning hours before this time are checked for excessive dew.
+        Example: a value of 10 means dew conditions are evaluated
+        from 00:00 until 09:59.
+      default: 10
+      selector:
+        number:
+          min: 0
+          max: 23
+          step: 1
+
+triggers:
+  - trigger: time
+    at: "06:00"
+  - trigger: time_pattern
+    minutes: /30
+  - trigger: homeassistant
+    event: start
+
+actions:
+  - variables:
+      weather_entity: !input weather_entity
+      last_applied_plan_entity: !input last_applied_plan_entity
+      skip_today_entity: !input skip_today_entity
+      day_start_input: !input day_start
+      day_end_input: !input day_end
+      min_temperature: !input min_temperature
+      max_temperature: !input max_temperature
+      max_precipitation: !input max_precipitation
+      max_rain_probability: !input max_rain_probability
+      min_dew_gap: !input min_dew_gap
+      dew_check_before_hour: !input dew_check_before_hour
+
+  - action: weather.get_forecasts
+    target:
+      entity_id: !input weather_entity
+    data:
+      type: hourly
+    response_variable: forecast
+
+  - variables:
+      plan_json: >
+        {% set f = forecast[weather_entity].forecast %}
+        {% set weekdays = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] %}
+        {% set ns = namespace(plan=[]) %}
+
+        {% for offset in range(0, 7) %}
+          {% set day_start = today_at(day_start_input) + timedelta(days=offset) %}
+          {% set day_end = today_at(day_end_input) + timedelta(days=offset) %}
+          {% set day_name = weekdays[(now().weekday() + offset) % 7] %}
+          {% set s = namespace(in_slot=false, start='', start_ts=0, slots=[]) %}
+
+          {% if offset == 0 %}
+            {% set first_fc = f | selectattr('datetime', 'defined') | list | first %}
+            {% if first_fc is defined %}
+              {% set first_dt = as_local(as_datetime(first_fc.datetime)) %}
+              {% if first_dt > day_start and first_dt < day_end %}
+                {% set s.in_slot = true %}
+                {% set s.start = day_start_input[:5] %}
+                {% set s.start_ts = as_timestamp(day_start) %}
+              {% endif %}
+            {% endif %}
+          {% endif %}
+
+          {% for h in f %}
+            {% set dt = as_local(as_datetime(h.datetime)) %}
+
+            {% if day_start <= dt < day_end %}
+              {% set precipitation = h.precipitation | float(0) %}
+              {% set rain_probability = h.precipitation_probability | float(0) %}
+              {% set condition = h.condition %}
+              {% set temperature = h.temperature | float(0) %}
+              {% set dew_point = h.dew_point | float(0) %}
+              {% set dew_gap = temperature - dew_point %}
+
+              {% set hard_rain =
+                precipitation >= max_precipitation
+                or rain_probability >= max_rain_probability
+                or condition in ['pouring', 'lightning', 'hail', 'snowy', 'snowy-rainy']
+              %}
+
+              {% set too_much_dew =
+                dt.hour < dew_check_before_hour
+                and dew_gap < min_dew_gap
+              %}
+
+              {% set dry =
+                not hard_rain
+                and not too_much_dew
+                and temperature > min_temperature
+                and (
+                  max_temperature == 0
+                  or temperature <= max_temperature
+                )
+              %}
+
+              {% if dry and not s.in_slot %}
+                {% set s.in_slot = true %}
+                {% set s.start = dt.strftime('%H:%M') %}
+                {% set s.start_ts = as_timestamp(dt) %}
+              {% elif not dry and s.in_slot %}
+                {% set duration = as_timestamp(dt) - s.start_ts %}
+                {% if duration >= 7200 %}
+                  {% set s.slots = s.slots + [s.start ~ '-' ~ dt.strftime('%H:%M')] %}
+                {% endif %}
+                {% set s.in_slot = false %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+
+          {% if s.in_slot %}
+            {% set duration = as_timestamp(day_end) - s.start_ts %}
+            {% if duration >= 7200 %}
+              {% set s.slots = s.slots + [s.start ~ '-' ~ day_end_input[:5]] %}
+            {% endif %}
+          {% endif %}
+
+          {% set ns.plan = ns.plan + [{'day': day_name, 'slots': s.slots[:2]}] %}
+        {% endfor %}
+
+        {{ ns.plan }}
+
+      current_plan_key: >-
+        {% set ns = namespace(parts=[]) %}
+        {% for d in plan_json %}
+          {% set slots = d.slots %}
+          {% set slot1 = slots[0] if slots | count > 0 else '-' %}
+          {% set slot2 = slots[1] if slots | count > 1 else '-' %}
+          {% set ns.parts = ns.parts + [d.day ~ ':' ~ slot1 ~ ',' ~ slot2] %}
+        {% endfor %}
+        {{ ns.parts | join('|') }}
+
+      last_plan_key: "{{ states(last_applied_plan_entity) }}"
+
+  - condition: template
+    value_template: "{{ current_plan_key != last_plan_key }}"
+
+  - repeat:
+      for_each: "{{ plan_json }}"
+      sequence:
+        - condition: template
+          value_template: >
+            {{ not (
+              repeat.item.day == ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][now().weekday()]
+              and skip_today_entity != ''
+              and is_state(skip_today_entity, 'on')
+            ) }}
+
+        - variables:
+            day_name: "{{ repeat.item.day }}"
+            slots: "{{ repeat.item.slots }}"
+            slot1: "{{ slots[0] if slots | count > 0 else '' }}"
+            slot2: "{{ slots[1] if slots | count > 1 else '' }}"
+
+        - action: boschindego.set_calendar_slot
+          data:
+            days: "{{ day_name }}"
+            slot: 1
+            enabled: "{{ slot1 != '' }}"
+            start: "{{ slot1.split('-')[0] if slot1 != '' else day_start_input[:5] }}"
+            end: "{{ slot1.split('-')[1] if slot1 != '' else day_end_input[:5] }}"
+
+        - action: boschindego.set_calendar_slot
+          data:
+            days: "{{ day_name }}"
+            slot: 2
+            enabled: "{{ slot2 != '' }}"
+            start: "{{ slot2.split('-')[0] if slot2 != '' else day_start_input[:5] }}"
+            end: "{{ slot2.split('-')[1] if slot2 != '' else day_end_input[:5] }}"
+
+  - action: input_text.set_value
+    target:
+      entity_id: !input last_applied_plan_entity
+    data:
+      value: "{{ current_plan_key }}"
+
+mode: single
