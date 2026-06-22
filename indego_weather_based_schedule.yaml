@@ -25,18 +25,18 @@ blueprint:
             - domain: weather
 
     weather_data_mode:
-        name: 🌦️ Weather Data Mode
-        description: >
-          Choose whether the blueprint should only use forecast data or allow
-          optional weather station sensors to override forecast values.
-        default: forecast_only
-        selector:
-          select:
-            options:
-              - label: Weather forecast only
-                value: forecast_only
-              - label: Forecast with weather station override
-                value: forecast_with_station_override
+      name: 🌦️ Weather Data Mode
+      description: >
+        Choose whether the blueprint should only use forecast data or allow
+        optional weather station sensors to override forecast values.
+      default: forecast_only
+      selector:
+        select:
+          options:
+            - label: Weather forecast only
+              value: forecast_only
+            - label: Forecast with weather station override
+              value: forecast_with_station_override
 
     station_temperature_sensor:
       name: 🌡️ Temperature Sensor
