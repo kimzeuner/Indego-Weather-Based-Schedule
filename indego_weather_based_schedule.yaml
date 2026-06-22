@@ -143,7 +143,25 @@ blueprint:
           min: 0
           max: 23
           step: 1
+          
+    send_notification:
+      name: Send Notification on Schedule Change
+      description: >
+        Enable this to send a notification whenever the calculated mowing
+        schedule changes.
+      default: false
+      selector:
+        boolean:
 
+    notification_action:
+      name: Notification Action
+      description: >
+        Optional notification action that will be executed when the schedule
+        changes. You can use the variables {{ notification_title }} and
+        {{ notification_message }} inside this action.
+      default: []
+      selector:
+        action:
 triggers:
   - trigger: time
     at: "06:00"
@@ -165,7 +183,8 @@ actions:
       max_rain_probability: !input max_rain_probability
       min_dew_gap: !input min_dew_gap
       dew_check_before_hour: !input dew_check_before_hour
-
+      send_notification: !input send_notification
+      
   - action: weather.get_forecasts
     target:
       entity_id: !input weather_entity
@@ -266,6 +285,37 @@ actions:
         {{ ns.parts | join('|') }}
 
       last_plan_key: "{{ states(last_applied_plan_entity) }}"
+      plan_summary: >-
+        {% set ns = namespace(lines=[]) %}
+        {% for d in plan_json %}
+          {% set slots = d.slots %}
+          {% set slot1 = slots[0] if slots | count > 0 else 'disabled' %}
+          {% set slot2 = slots[1] if slots | count > 1 else 'disabled' %}
+          {% set ns.lines = ns.lines + [d.day ~ ': ' ~ slot1 ~ ', ' ~ slot2] %}
+        {% endfor %}
+        {{ ns.lines | join('\n') }}
+
+      change_summary: >-
+        {% set old_parts = last_plan_key.split('|') if last_plan_key not in ['unknown', 'unavailable', ''] else [] %}
+        {% set new_parts = current_plan_key.split('|') %}
+        {% set ns = namespace(lines=[]) %}
+        {% for new in new_parts %}
+          {% set day = new.split(':')[0] %}
+          {% set old = old_parts | select('search', '^' ~ day ~ ':') | list | first | default('') %}
+          {% if old != new %}
+            {% set old_value = old.split(':')[1] if ':' in old else 'none' %}
+            {% set new_value = new.split(':')[1] if ':' in new else 'none' %}
+            {% set ns.lines = ns.lines + [day ~ ': ' ~ old_value ~ ' → ' ~ new_value] %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.lines | join('\n') }}
+
+      notification_title: "Indego mowing schedule updated"
+
+      notification_message: >-
+        The Indego mowing schedule has changed:
+
+        {{ change_summary }}
 
   - condition: template
     value_template: "{{ current_plan_key != last_plan_key }}"
@@ -275,10 +325,18 @@ actions:
       sequence:
         - condition: template
           value_template: >
+            {% set today_name = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][now().weekday()] %}
+            {% set is_today = repeat.item.day == today_name %}
+            {% set after_day_end = now() >= today_at(day_end_input) %}
             {{ not (
-              repeat.item.day == ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][now().weekday()]
-              and skip_today_entity != ''
-              and is_state(skip_today_entity, 'on')
+              is_today
+              and (
+                after_day_end
+                or (
+                  skip_today_entity != ''
+                  and is_state(skip_today_entity, 'on')
+                )
+              )
             ) }}
 
         - variables:
@@ -302,6 +360,11 @@ actions:
             enabled: "{{ slot2 != '' }}"
             start: "{{ slot2.split('-')[0] if slot2 != '' else day_start_input[:5] }}"
             end: "{{ slot2.split('-')[1] if slot2 != '' else day_end_input[:5] }}"
+
+  - if:
+      - condition: template
+        value_template: "{{ send_notification }}"
+    then: !input notification_action
 
   - action: input_text.set_value
     target:
