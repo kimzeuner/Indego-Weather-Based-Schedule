@@ -24,6 +24,70 @@ blueprint:
           filter:
             - domain: weather
 
+ weather_data_mode:
+      name: 🌦️ Weather Data Mode
+      description: >
+        Choose whether the blueprint should only use forecast data or allow
+        optional weather station sensors to override forecast values.
+      default: forecast_only
+      selector:
+        select:
+          options:
+            - label: Weather forecast only
+              value: forecast_only
+            - label: Forecast with weather station override
+              value: forecast_with_station_override
+
+    station_temperature_sensor:
+      name: 🌡️ Temperature Sensor
+      description: >
+        Optional temperature sensor from your own weather station.
+        If set and override mode is enabled, this value overrides the forecast
+        temperature for the current day.
+      default: ""
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+              device_class: temperature
+
+    station_precipitation_sensor:
+      name: 🌧️ Precipitation Sensor
+      description: >
+        Optional precipitation sensor from your own weather station.
+        If set and override mode is enabled, this value overrides the forecast
+        precipitation value for the current day.
+      default: ""
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+
+    station_rain_probability_sensor:
+      name: 🌧️ Rain Probability Sensor
+      description: >
+        Optional rain probability sensor.
+        If set and override mode is enabled, this value overrides the forecast
+        rain probability for the current day.
+      default: ""
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+
+    station_dew_point_sensor:
+      name: 💧 Dew Point Sensor
+      description: >
+        Optional dew point sensor from your own weather station.
+        If set and override mode is enabled, this value overrides the forecast
+        dew point for the current day.
+      default: ""
+      selector:
+        entity:
+          filter:
+            - domain: sensor
+              device_class: temperature
+
     last_applied_plan_entity:
       name: ⚙️ Last Applied Plan Storage
       description: >
@@ -184,6 +248,11 @@ actions:
       min_dew_gap: !input min_dew_gap
       dew_check_before_hour: !input dew_check_before_hour
       send_notification: !input send_notification
+      weather_data_mode: !input weather_data_mode
+      station_temperature_sensor: !input station_temperature_sensor
+      station_precipitation_sensor: !input station_precipitation_sensor
+      station_rain_probability_sensor: !input station_rain_probability_sensor
+      station_dew_point_sensor: !input station_dew_point_sensor
       
   - action: weather.get_forecasts
     target:
@@ -220,11 +289,57 @@ actions:
             {% set dt = as_local(as_datetime(h.datetime)) %}
 
             {% if day_start <= dt < day_end %}
-              {% set precipitation = h.precipitation | float(0) %}
-              {% set rain_probability = h.precipitation_probability | float(0) %}
+              {% set use_station_override =
+                weather_data_mode == 'forecast_with_station_override'
+                and offset == 0
+              %}
+              
+              {% set forecast_precipitation = h.precipitation | float(0) %}
+              {% set forecast_rain_probability = h.precipitation_probability | float(0) %}
               {% set condition = h.condition %}
-              {% set temperature = h.temperature | float(0) %}
-              {% set dew_point = h.dew_point | float(0) %}
+              {% set forecast_temperature = h.temperature | float(0) %}
+              {% set forecast_dew_point = h.dew_point | float(0) %}
+              
+              {% set station_temperature =
+                states(station_temperature_sensor) | float(none)
+                if use_station_override and station_temperature_sensor != ''
+                else none
+              %}
+              
+              {% set station_precipitation =
+                states(station_precipitation_sensor) | float(none)
+                if use_station_override and station_precipitation_sensor != ''
+                else none
+              %}
+              
+              {% set station_rain_probability =
+                states(station_rain_probability_sensor) | float(none)
+                if use_station_override and station_rain_probability_sensor != ''
+                else none
+              %}
+              
+              {% set station_dew_point =
+                states(station_dew_point_sensor) | float(none)
+                if use_station_override and station_dew_point_sensor != ''
+                else none
+              %}
+              
+              {% set temperature =
+                station_temperature if station_temperature is not none else forecast_temperature
+              %}
+              
+              {% set precipitation =
+                station_precipitation if station_precipitation is not none else forecast_precipitation
+              %}
+              
+              {% set rain_probability =
+                station_rain_probability if station_rain_probability is not none else forecast_rain_probability
+              %}
+              
+              {% set dew_point =
+                station_dew_point if station_dew_point is not none else forecast_dew_point
+              %}
+              
               {% set dew_gap = temperature - dew_point %}
 
               {% set hard_rain =
