@@ -62,14 +62,14 @@ After copying the file, reload automations or restart Home Assistant.
 
 ### Import from GitHub
 
-[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)]([YOUR_RAW_BLUEPRINT_URL](https://raw.githubusercontent.com/kimzeuner/Indego-Weather-Based-Schedule/refs/heads/main/indego_weather_based_schedule.yaml))
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)]([YOUR_RAW_BLUEPRINT_URL](https://raw.githubusercontent.com/kimzeuner/Indego-Weather-Based-Schedule/main/indego_weather_based_schedule.yaml))
 
 Use the raw GitHub URL of the blueprint YAML file when importing it into Home Assistant.
 
 Example:
 
 ```text
-https://raw.githubusercontent.com/<user>/<repository>/<branch>/indego_weather_based_schedule.yaml
+https://raw.githubusercontent.com/kimzeuner/Indego-Weather_Based-Schedule/main/indego_weather_based_schedule.yaml
 ```
 
 In Home Assistant:
