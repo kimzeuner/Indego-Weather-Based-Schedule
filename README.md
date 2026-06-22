@@ -2,7 +2,7 @@
 
 ![GitHub release](https://img.shields.io/github/v/release/kimzeuner/Indego-Weather-Based-Schedule)
 ![GitHub License](https://img.shields.io/github/license/kimzeuner/Indego-Weather-Based-Schedule)
-![GitHub Downloads](https://img.shields.io/github/downloads/kimzeuner/Indego-Weather-Based-Schedule/total)
+![GitHub Repo stars](https://img.shields.io/github/stars/kimzeuner/Indego-Weather-Based-Schedule)
 
 [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/kimzeuner/Indego-Weather-Based-Schedule/main/indego_weather_based_schedule.yaml)
 
