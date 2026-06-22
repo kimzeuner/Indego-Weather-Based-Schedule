@@ -24,7 +24,7 @@ blueprint:
           filter:
             - domain: weather
 
-   weather_data_mode:
+    weather_data_mode:
         name: 🌦️ Weather Data Mode
         description: >
           Choose whether the blueprint should only use forecast data or allow
