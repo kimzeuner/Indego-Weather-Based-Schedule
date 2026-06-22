@@ -1,36 +1,74 @@
 # Indego Weather-Based Schedule Blueprint
 
-This Home Assistant Blueprint automatically generates and updates Bosch Indego mowing calendar slots based on hourly weather forecast data.
+![GitHub release](https://img.shields.io/github/v/release/kimzeuner/Indego-Weather-Based-Schedule)
+![GitHub License](https://img.shields.io/github/license/kimzeuner/Indego-Weather-Based-Schedule)
+![GitHub Downloads](https://img.shields.io/github/downloads/kimzeuner/Indego-Weather-Based-Schedule/total)
 
-The blueprint calculates suitable mowing windows by evaluating precipitation, rain probability, temperature, and dew point conditions. It updates the Bosch Indego weekly mowing schedule only when the calculated plan has changed, reducing unnecessary API calls.
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/kimzeuner/Indego-Weather-Based-Schedule/main/indego_weather_based_schedule.yaml)
+
+Automatically generates and updates Bosch Indego mowing calendar slots based on hourly weather forecasts.
+
+---
 
 ## Features
 
-- Creates up to two mowing slots per day
-- Uses hourly weather forecast data
-- Configurable mowing time window
-- Configurable minimum temperature
-- Optional maximum temperature limit
-- Configurable precipitation and rain probability thresholds
-- Morning dew check based on temperature and dew point difference
-- Optional helper to skip mowing for the current day
-- Stores the last applied plan to avoid unnecessary updates
+- 🌦️ Weather-based mowing schedule generation
+- 🌡️ Configurable minimum and maximum temperature limits
+- 🌧️ Rain probability and precipitation thresholds
+- 💧 Morning dew detection
+- 📅 Up to two mowing slots per day
+- 🚫 Optional "Skip Today" helper
+- 🔄 Automatic schedule updates when forecast conditions change
+- 📱 Optional notifications when the schedule changes
+- ⚡ Avoids unnecessary API calls by detecting unchanged schedules
+
+---
 
 ## Dependencies
 
-This blueprint requires the Bosch Indego Lawnmower integration:
+⚠️ This blueprint requires the Bosch Indego integration:
 
 https://github.com/WhyLev/Indego
 
-You also need a Home Assistant weather entity that supports hourly forecast data via `weather.get_forecasts`.
+You also need a weather entity that supports hourly forecasts via:
+
+```yaml
+weather.get_forecasts
+```
+
+---
+
+## Installation
+
+### One Click Import
+
+Click the button below:
+
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/kimzeuner/Indego-Weather-Based-Schedule/main/indego_weather_based_schedule.yaml)
+
+### Manual Installation
+
+Download:
+
+```text
+indego_weather_based_schedule.yaml
+```
+
+and copy it to:
+
+```text
+/config/blueprints/automation/
+```
+
+Restart Home Assistant or reload automations afterwards.
+
+---
 
 ## Required Helpers
 
-Create the following helpers in Home Assistant before using this blueprint.
-
 ### Input Text
 
-Used to store the last applied mowing plan.
+Stores the last applied mowing plan.
 
 ```yaml
 input_text:
@@ -40,7 +78,7 @@ input_text:
 
 ### Input Boolean (Optional)
 
-Used to skip mowing for the current day.
+Allows skipping today's mowing schedule.
 
 ```yaml
 input_boolean:
@@ -48,64 +86,55 @@ input_boolean:
     name: Indego Skip Today
 ```
 
-## Installation Methods
-
-### Manual Installation
-
-Download the blueprint YAML file and place it in your Home Assistant configuration directory:
-
-```text
-/config/blueprints/automation/indego_weather_based_schedule.yaml
-```
-
-After copying the file, reload automations or restart Home Assistant.
-
-### Import from GitHub
-
-[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)]([YOUR_RAW_BLUEPRINT_URL](https://raw.githubusercontent.com/kimzeuner/Indego-Weather-Based-Schedule/main/indego_weather_based_schedule.yaml))
-
-Use the raw GitHub URL of the blueprint YAML file when importing it into Home Assistant.
-
-Example:
-
-```text
-https://raw.githubusercontent.com/kimzeuner/Indego-Weather_Based-Schedule/main/indego_weather_based_schedule.yaml
-```
-
-In Home Assistant:
-
-```text
-Settings → Automations & Scenes → Blueprints → Import Blueprint
-```
-
-Paste the raw URL and import the blueprint.
+---
 
 ## Configuration
 
-| Type | Default | Description |
-| --- | --- | --- |
-| Weather Entity | - | Select the weather entity that provides the hourly forecast data. |
-| Input Text Helper | - | Select the `input_text` helper used to store the last generated mowing plan. |
-| Input Boolean Helper | - | Optional `input_boolean` helper. When enabled, mowing slots for the current day will be skipped. |
-| Earliest Mowing Time | 08:00 | Start of the daily mowing window. Forecast hours before this time are ignored. |
-| Latest Mowing Time | 20:00 | End of the daily mowing window. Forecast hours after this time are ignored. |
-| Minimum Temperature | 8°C | Minimum outside temperature required for mowing. |
-| Maximum Temperature | 0°C (disabled) | Maximum outside temperature allowed for mowing.<br>Set this value to `0` to disable the upper temperature limit. |
-| Maximum Precipitation | 0.5mm | Maximum hourly precipitation amount allowed for mowing. |
-| Maximum Rain Probability | 75 % | Maximum rain probability allowed for mowing. |
-| Minimum Temperature / Dew Point Difference | 2°C | Minimum required difference between air temperature and dew point during the morning dew check period.<br>A smaller difference usually indicates a higher chance of wet grass. |
-| Morning Dew Check Until Hour | 10 | Morning hours before this time are checked for excessive dew.<br>Example: `10` means the dew check is active from `00:00` until `09:59`. |
+| Setting | Description |
+|----------|-------------|
+| Weather Entity | Weather entity providing hourly forecast data |
+| Last Applied Plan Storage | Input Text helper used to store the generated schedule |
+| Skip Today's Schedule | Optional Input Boolean helper |
+| Earliest Mowing Time | Beginning of the allowed mowing window |
+| Latest Mowing Time | End of the allowed mowing window |
+| Minimum Temperature | Minimum temperature required for mowing |
+| Maximum Temperature | Maximum temperature allowed for mowing (0 = disabled) |
+| Maximum Precipitation | Maximum hourly precipitation allowed |
+| Maximum Rain Probability | Maximum forecast rain probability allowed |
+| Minimum Temperature / Dew Point Difference | Used for dew detection |
+| Morning Dew Check Until Hour | Time until which dew checks are active |
+| Notifications | Optional notifications when schedule changes |
 
+---
 
-## Notes
+## Example
 
-- The blueprint creates a maximum of two mowing slots per day.
-- Each mowing slot must be at least two hours long.
-- The weekly Indego calendar is only updated when the calculated plan changes.
-- If the selected weather entity does not provide `precipitation`, `precipitation_probability`, `temperature`, or `dew_point`, results may be incomplete.
+The blueprint evaluates:
+
+- Temperature
+- Dew point
+- Rain probability
+- Precipitation
+- Forecast conditions
+
+and automatically generates suitable mowing windows for the next seven days.
+
+---
 
 ## Participate 🎉
 
-Ideas, improvements, bug reports, and pull requests are always welcome.
+Ideas, improvements, bug reports and pull requests are always welcome.
 
-Feel free to fork the repository, improve the blueprint, and create a pull request.
+Feel free to:
+
+- Fork this repository
+- Open an Issue
+- Submit a Pull Request
+
+---
+
+## Disclaimer
+
+This project is not affiliated with or endorsed by Bosch.
+
+Bosch, Indego and related trademarks belong to their respective owners.
