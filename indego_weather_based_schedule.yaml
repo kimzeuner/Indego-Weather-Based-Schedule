@@ -500,12 +500,12 @@ actions:
             - variables:
                 today_name: >
                   {{ ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][now().weekday()] }}
-            - action: boschindego.set_calendar_slot
+            - action: indego.set_calendar_slot
               data:
                 days: "{{ today_name }}"
                 slot: 1
                 enabled: false
-            - action: boschindego.set_calendar_slot
+            - action: indego.set_calendar_slot
               data:
                 days: "{{ today_name }}"
                 slot: 2
@@ -551,7 +551,7 @@ actions:
             slot1: "{{ slots[0] if slots | count > 0 else '' }}"
             slot2: "{{ slots[1] if slots | count > 1 else '' }}"
 
-        - action: boschindego.set_calendar_slot
+        - action: indego.set_calendar_slot
           data:
             days: "{{ day_name }}"
             slot: 1
@@ -559,7 +559,7 @@ actions:
             start: "{{ slot1.split('-')[0] if slot1 != '' else day_start_input[:5] }}"
             end: "{{ slot1.split('-')[1] if slot1 != '' else day_end_input[:5] }}"
 
-        - action: boschindego.set_calendar_slot
+        - action: indego.set_calendar_slot
           data:
             days: "{{ day_name }}"
             slot: 2
