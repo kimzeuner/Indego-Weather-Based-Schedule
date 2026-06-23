@@ -2,7 +2,7 @@ blueprint:
   name: Indego Weather-Based Mowing Schedule
   description: "## Bosch Indego Weather-Based Mowing Schedule\n\n
     ⚠️ BOSCH INDEGO INTEGRATION REQUIRED\n
-    https://github.com/WhyLev/Indego\n\n
+    https://github.com/sander1988/Indego/tree/develop\n\n
     Automatically generates and updates Bosch Indego mowing calendar slots
     based on hourly weather forecasts.\n
     Suitable mowing windows are determined using precipitation, rain probability, temperature, and dew conditions.\n
