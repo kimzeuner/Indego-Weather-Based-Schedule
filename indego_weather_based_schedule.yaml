@@ -478,51 +478,51 @@ actions:
         The Indego mowing schedule has changed:
 
         {{ change_summary }}
-- choose:
-      - conditions:
-          - condition: trigger
-            id: rain_check
-          - condition: template
-            value_template: >
-              {{ dock_on_rain
-                 and rain_now_sensor != ''
-                 and states(rain_now_sensor) | float(0) > 0 }}
-        sequence:
-          - action: lawn_mower.dock
-            target:
-              entity_id: !input mower_entity
-          - stop: "Mower docked because rain was detected."
-
-      - conditions:
-          - condition: trigger
-            id: skip_today
-        sequence:
-          - variables:
-              today_name: >
-                {{ ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][now().weekday()] }}
-          - action: boschindego.set_calendar_slot
-            data:
-              days: "{{ today_name }}"
-              slot: 1
-              enabled: false
-          - action: boschindego.set_calendar_slot
-            data:
-              days: "{{ today_name }}"
-              slot: 2
-              enabled: false
-          - action: lawn_mower.dock
-            target:
-              entity_id: !input mower_entity
-          - stop: "Today's Indego schedule was skipped."
-
-      - conditions:
-          - condition: trigger
-            id: reset_skip_today
-        sequence:
-          - action: input_boolean.turn_off
-            target:
-              entity_id: !input skip_today_entity
-          - stop: "Skip today helper was reset."
+  - choose:
+        - conditions:
+            - condition: trigger
+              id: rain_check
+            - condition: template
+              value_template: >
+                {{ dock_on_rain
+                   and rain_now_sensor != ''
+                   and states(rain_now_sensor) | float(0) > 0 }}
+          sequence:
+            - action: lawn_mower.dock
+              target:
+                entity_id: !input mower_entity
+            - stop: "Mower docked because rain was detected."
+  
+        - conditions:
+            - condition: trigger
+              id: skip_today
+          sequence:
+            - variables:
+                today_name: >
+                  {{ ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][now().weekday()] }}
+            - action: boschindego.set_calendar_slot
+              data:
+                days: "{{ today_name }}"
+                slot: 1
+                enabled: false
+            - action: boschindego.set_calendar_slot
+              data:
+                days: "{{ today_name }}"
+                slot: 2
+                enabled: false
+            - action: lawn_mower.dock
+              target:
+                entity_id: !input mower_entity
+            - stop: "Today's Indego schedule was skipped."
+  
+        - conditions:
+            - condition: trigger
+              id: reset_skip_today
+          sequence:
+            - action: input_boolean.turn_off
+              target:
+                entity_id: !input skip_today_entity
+            - stop: "Skip today helper was reset."
   - condition: template
     value_template: "{{ current_plan_key != last_plan_key }}"
 
