@@ -1,6 +1,19 @@
-# Indego Weather-Based Schedule Blueprint
+<table>
+<tr>
+<td width="140">
 
-> Automatically generates and updates Bosch Indego mowing calendar slots based on hourly weather forecasts.
+<img src="https://raw.githubusercontent.com/kimzeuner/Indego-Weather-Based-Schedule/main/images/icon.png" width="140" alt="Bosch Indego Weather Based Schedule">
+
+</td>
+<td>
+
+# Bosch Indego Weather-Based Schedule Blueprint
+
+Automatically generates and updates Bosch Indego mowing calendar slots based on hourly weather forecasts.
+
+</td>
+</tr>
+</table>
 
 ![GitHub Release](https://img.shields.io/github/v/release/kimzeuner/Indego-Weather-Based-Schedule?style=for-the-badge)
 ![License](https://img.shields.io/github/license/kimzeuner/Indego-Weather-Based-Schedule?style=for-the-badge)
