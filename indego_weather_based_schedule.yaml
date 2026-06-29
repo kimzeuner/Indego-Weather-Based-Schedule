@@ -14,251 +14,269 @@ blueprint:
   homeassistant:
     min_version: "2025.1.0"
   input:
-    mower_entity:
-      name: 🤖 Lawn Mower Entity
-      description: >
-        Lawn mower entity of your Bosch Indego. Used to send the mower back
-        to the dock when rain is detected or when today's schedule is skipped.
-      selector:
-        entity:
-          filter:
-            - domain: lawn_mower
-  
-    weather_entity:
-      name: 🌦️ Weather Entity
-      description: >
-        Weather entity providing the hourly forecast used to determine
-        suitable mowing windows.
-      selector:
-        entity:
-          filter:
-            - domain: weather
-
-    weather_data_mode:
-      name: 🌦️ Weather Data Mode
-      description: >
-        Choose whether the blueprint should only use forecast data or allow
-        optional weather station sensors to override forecast values.
-      default: forecast_only
-      selector:
-        select:
-          options:
-            - label: Weather forecast only
-              value: forecast_only
-            - label: Forecast with weather station override
-              value: forecast_with_station_override
-
-    dock_on_rain:
-      name: 🌧️ Dock Mower on Rain
-      description: >
-        Enable this to send the mower back to the dock when rain is detected.
-      default: true
-      selector:
-        boolean:
-        
-    rain_now_sensor:
-      name: 🌧️ Rain Now Sensor
-      description: >
-        Optional sensor or binary sensor used to detect current rain.
-        If the value is greater than 0, the mower will be sent back to the dock.
-      default: ""
-      selector:
-        entity:
-          filter:
-            - domain:
-                - sensor
-                - binary_sensor
-
-    station_temperature_sensor:
-      name: 🌡️ Temperature Sensor
-      description: >
-        Optional temperature sensor from your own weather station.
-        If set and override mode is enabled, this value overrides the forecast
-        temperature for the current day.
-      default: ""
-      selector:
-        entity:
-          filter:
-            - domain: sensor
-              device_class: temperature
-
-    station_precipitation_sensor:
-      name: 🌧️ Precipitation Sensor
-      description: >
-        Optional precipitation sensor from your own weather station.
-        If set and override mode is enabled, this value overrides the forecast
-        precipitation value for the current day.
-      default: ""
-      selector:
-        entity:
-          filter:
-            - domain: sensor
-
-    station_rain_probability_sensor:
-      name: 🌧️ Rain Probability Sensor
-      description: >
-        Optional rain probability sensor.
-        If set and override mode is enabled, this value overrides the forecast
-        rain probability for the current day.
-      default: ""
-      selector:
-        entity:
-          filter:
-            - domain: sensor
-
-    station_dew_point_sensor:
-      name: 💧 Dew Point Sensor
-      description: >
-        Optional dew point sensor from your own weather station.
-        If set and override mode is enabled, this value overrides the forecast
-        dew point for the current day.
-      default: ""
-      selector:
-        entity:
-          filter:
-            - domain: sensor
-              device_class: temperature
-
-    last_applied_plan_entity:
-      name: ⚙️ Last Applied Plan Storage
-      description: >
-        Input text helper used to store the last generated mowing plan.
-        Prevents unnecessary calendar updates when the calculated plan
-        has not changed.
-      selector:
-        entity:
-          filter:
-            - domain: input_text
-
+    mower:
+      name: 🤖 Lawn Mower
+      collapsed: false
+      input:
+        mower_entity:
+          name: 🤖 Lawn Mower Entity
+          description: >
+            Lawn mower entity of your Bosch Indego. Used to send the mower back
+            to the dock when rain is detected or when today's schedule is skipped.
+          selector:
+            entity:
+              filter:
+                - domain: lawn_mower
+                
+        dock_on_rain:
+          name: 🌧️ Dock Mower on Rain
+          description: >
+            Enable this to send the mower back to the dock when rain is detected.
+          default: true
+          selector:
+            boolean:
             
+        rain_now_sensor:
+          name: 🌧️ Rain Now Sensor
+          description: >
+            Optional sensor or binary sensor used to detect current rain.
+            If the value is greater than 0, the mower will be sent back to the dock.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain:
+                    - sensor
+                    - binary_sensor
 
-    skip_today_entity:
-      name: ⏱️ Skip Today's Schedule
-      description: >
-        Optional input_boolean helper. When enabled, all mowing slots
-        for the current day will be disabled while leaving the remaining
-        weekly schedule unchanged.
-      default: ""
-      selector:
-        entity:
-          filter:
-            - domain: input_boolean
-
-    day_start:
-      name: ⏱️ Earliest Mowing Time
-      description: >
-        Beginning of the daily time window in which mowing may be scheduled.
-        Forecast data outside this period will be ignored.
-      default: "08:00:00"
-      selector:
-        time:
-
-    day_end:
-      name: ⏱️ Latest Mowing Time
-      description: >
-        End of the daily time window in which mowing may be scheduled.
-        Forecast data outside this period will be ignored.
-      default: "20:00:00"
-      selector:
-        time:
-
-    min_temperature:
-      name: 🌡️ Minimum Temperature
-      description: >
-        Minimum air temperature required for mowing.
-        Hours below this temperature will be considered unsuitable.
-      default: 8
-      selector:
-        number:
-          min: -10
-          max: 30
-          step: 0.5
-          unit_of_measurement: "°C"
-
-    max_temperature:
-      name: 🌡️ Maximum Temperature
-      description: >
-        Maximum air temperature allowed for mowing.
-        Set to 0 to disable the upper temperature limit.
-      default: 0
-      selector:
-        number:
-          min: 0
-          max: 50
-          step: 1
-          unit_of_measurement: "°C"
-
-    max_precipitation:
-      name: 🌧️ Maximum Precipitation
-      description: >
-        Maximum hourly precipitation amount allowed for mowing.
-        Hours exceeding this value will be treated as rainy.
-      default: 0.5
-      selector:
-        number:
-          min: 0
-          max: 10
-          step: 0.1
-          unit_of_measurement: "mm"
-
-    max_rain_probability:
-      name: 🌧️ Maximum Rain Probability
-      description: >
-        Maximum forecast rain probability allowed for mowing.
-        Hours above this threshold will be considered unsuitable.
-      default: 75
-      selector:
-        number:
-          min: 0
-          max: 100
-          step: 1
-          unit_of_measurement: "%"
-
-    min_dew_gap:
-      name: 💧 Minimum Temperature / Dew Point Difference
-      description: >
-        Minimum required difference between air temperature and dew point
-        during the morning dew check period. Smaller values indicate
-        increased likelihood of wet grass.
-      default: 2
-      selector:
-        number:
-          min: 0
-          max: 10
-          step: 0.5
-          unit_of_measurement: "°C"
-
-    dew_check_before_hour:
-      name: ⏱️ Morning Dew Check Until Hour
-      description: >
-        Morning hours before this time are checked for excessive dew.
-        Example: a value of 10 means dew conditions are evaluated
-        from 00:00 until 09:59.
-      default: 10
-      selector:
-        number:
-          min: 0
-          max: 23
-          step: 1
-          
-    send_notification:
-      name: Send Notification on Schedule Change
-      description: >
-        Enable this to send a notification whenever the calculated mowing
-        schedule changes.
-      default: false
-      selector:
-        boolean:
-
-    notification_action:
-      name: Notification Action
-      description: >
-        Optional notification action that will be executed when the schedule
-        changes. You can use the variables {{ notification_title }} and
-        {{ notification_message }} inside this action.
-      default: []
-      selector:
-        action:
+    weather_source:
+      name: 🌦️ Weather Source
+      collapsed: false
+      input:
+        weather_entity:
+          name: 🌦️ Weather Entity
+          description: >
+            Weather entity providing the hourly forecast used to determine
+            suitable mowing windows.
+          selector:
+            entity:
+              filter:
+                - domain: weather
+                
+        weather_data_mode:
+          name: 🌦️ Weather Data Mode
+          description: >
+            Choose whether the blueprint should only use forecast data or allow
+            optional weather station sensors to override forecast values.
+          default: forecast_only
+          selector:
+            select:
+              options:
+                - label: Weather forecast only
+                  value: forecast_only
+                - label: Forecast with weather station override
+                  value: forecast_with_station_override
+                  
+        station_temperature_sensor:
+          name: 🌡️ Temperature Sensor
+          description: >
+            Optional temperature sensor from your own weather station.
+            If set and override mode is enabled, this value overrides the forecast
+            temperature for the current day.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: sensor
+                  device_class: temperature
+                  
+        station_precipitation_sensor:
+          name: 🌧️ Precipitation Sensor
+          description: >
+            Optional precipitation sensor from your own weather station.
+            If set and override mode is enabled, this value overrides the forecast
+            precipitation value for the current day.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: sensor
+                
+        station_rain_probability_sensor:
+          name: 🌧️ Rain Probability Sensor
+          description: >
+            Optional rain probability sensor.
+            If set and override mode is enabled, this value overrides the forecast
+            rain probability for the current day.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: sensor
+                
+        station_dew_point_sensor:
+          name: 💧 Dew Point Sensor
+          description: >
+            Optional dew point sensor from your own weather station.
+            If set and override mode is enabled, this value overrides the forecast
+            dew point for the current day.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: sensor
+                  device_class: temperature
+  
+    scheduling:
+      name: ⏱️ Scheduling
+      collapsed: false
+      input:
+        day_start:
+          name: ⏱️ Earliest Mowing Time
+          description: >
+            Beginning of the daily time window in which mowing may be scheduled.
+            Forecast data outside this period will be ignored.
+          default: "08:00:00"
+          selector:
+            time:
+    
+        day_end:
+          name: ⏱️ Latest Mowing Time
+          description: >
+            End of the daily time window in which mowing may be scheduled.
+            Forecast data outside this period will be ignored.
+          default: "20:00:00"
+          selector:
+            time:
+            
+        skip_today_entity:
+          name: ⏱️ Skip Today's Schedule
+          description: >
+            Optional input_boolean helper. When enabled, all mowing slots
+            for the current day will be disabled while leaving the remaining
+            weekly schedule unchanged.
+          default: ""
+          selector:
+            entity:
+              filter:
+                - domain: input_boolean
+                
+        last_applied_plan_entity:
+          name: ⚙️ Last Applied Plan Storage
+          description: >
+            Input text helper used to store the last generated mowing plan.
+            Prevents unnecessary calendar updates when the calculated plan
+            has not changed.
+          selector:
+            entity:
+              filter:
+                - domain: input_text
+                
+    weather_thresholds:
+      name: 🌡️ Weather Thresholds
+      collapsed: true
+      input:
+        min_temperature:
+          name: 🌡️ Minimum Temperature
+          description: >
+            Minimum air temperature required for mowing.
+            Hours below this temperature will be considered unsuitable.
+          default: 8
+          selector:
+            number:
+              min: -10
+              max: 30
+              step: 0.5
+              unit_of_measurement: "°C"
+    
+        max_temperature:
+          name: 🌡️ Maximum Temperature
+          description: >
+            Maximum air temperature allowed for mowing.
+            Set to 0 to disable the upper temperature limit.
+          default: 0
+          selector:
+            number:
+              min: 0
+              max: 50
+              step: 1
+              unit_of_measurement: "°C"
+    
+        max_precipitation:
+          name: 🌧️ Maximum Precipitation
+          description: >
+            Maximum hourly precipitation amount allowed for mowing.
+            Hours exceeding this value will be treated as rainy.
+          default: 0.5
+          selector:
+            number:
+              min: 0
+              max: 10
+              step: 0.1
+              unit_of_measurement: "mm"
+    
+        max_rain_probability:
+          name: 🌧️ Maximum Rain Probability
+          description: >
+            Maximum forecast rain probability allowed for mowing.
+            Hours above this threshold will be considered unsuitable.
+          default: 75
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+    
+        min_dew_gap:
+          name: 💧 Minimum Temperature / Dew Point Difference
+          description: >
+            Minimum required difference between air temperature and dew point
+            during the morning dew check period. Smaller values indicate
+            increased likelihood of wet grass.
+          default: 2
+          selector:
+            number:
+              min: 0
+              max: 10
+              step: 0.5
+              unit_of_measurement: "°C"
+    
+        dew_check_before_hour:
+          name: ⏱️ Morning Dew Check Until Hour
+          description: >
+            Morning hours before this time are checked for excessive dew.
+            Example: a value of 10 means dew conditions are evaluated
+            from 00:00 until 09:59.
+          default: 10
+          selector:
+            number:
+              min: 0
+              max: 23
+              step: 1
+  
+    notifications:
+      name: 📱 Notifications
+      collapsed: true
+      input:
+        send_notification:
+          name: Send Notification on Schedule Change
+          description: >
+            Enable this to send a notification whenever the calculated mowing
+            schedule changes.
+          default: false
+          selector:
+            boolean:
+    
+        notification_action:
+          name: Notification Action
+          description: >
+            Optional notification action that will be executed when the schedule
+            changes. You can use the variables {{ notification_title }} and
+            {{ notification_message }} inside this action.
+          default: []
+          selector:
+            action:
 triggers:
   - trigger: time
     at: "06:00"
