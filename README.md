@@ -7,7 +7,7 @@
 </td>
 <td>
 
-# Bosch Indego Weather-Based Schedule Blueprint
+# Bosch Indego Weather Based Schedule Blueprint
 
 Automatically generates and updates Bosch Indego mowing calendar slots based on hourly weather forecasts.
 
