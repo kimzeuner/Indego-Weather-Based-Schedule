@@ -16,7 +16,7 @@ blueprint:
   input:
     mower:
       name: 🤖 Lawn Mower
-      collapsed: false
+      collapsed: true
       input:
         mower_entity:
           name: 🤖 Lawn Mower Entity
@@ -51,7 +51,7 @@ blueprint:
 
     weather_source:
       name: 🌦️ Weather Source
-      collapsed: false
+      collapsed: true
       input:
         weather_entity:
           name: 🌦️ Weather Entity
@@ -129,7 +129,7 @@ blueprint:
   
     scheduling:
       name: ⏱️ Scheduling
-      collapsed: false
+      collapsed: true
       input:
         day_start:
           name: ⏱️ Earliest Mowing Time
