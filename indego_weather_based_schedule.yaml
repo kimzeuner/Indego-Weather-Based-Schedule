@@ -262,8 +262,10 @@ blueprint:
 triggers:
   - trigger: time
     at: "06:00"
+    id: update_schedule
   - trigger: time_pattern
     minutes: /30
+    id: update_schedule
   - trigger: homeassistant
     event: start
     id: update_schedule
