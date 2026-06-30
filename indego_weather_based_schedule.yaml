@@ -148,13 +148,21 @@ blueprint:
           default: "20:00:00"
           selector:
             time:
+
+        enable_skip_today:
+          name: Enable Skip Today's Schedule
+          description: >
+            Enable this if you want to use an input_boolean helper to skip today's
+            mowing schedule and send the mower back to the dock.
+          default: false
+          selector:
+            boolean:
             
         skip_today_entity:
           name: ⏱️ Skip Today's Schedule
           description: >
-            Optional input_boolean helper. When enabled, all mowing slots
-            for the current day will be disabled while leaving the remaining
-            weekly schedule unchanged.
+            Input_boolean helper used to skip today's mowing schedule.
+            Required only when "Enable Skip Today's Schedule" is enabled.
           default: ""
           selector:
             entity:
@@ -294,9 +302,11 @@ triggers:
     entity_id: !input skip_today_entity
     to: "on"
     id: skip_today
+    enabled: !input enable_skip_today
   - trigger: time
     at: "00:05:00"
     id: reset_skip_today
+    enabled: !input enable_skip_today
 
 actions:
   - variables:
@@ -320,7 +330,57 @@ actions:
       mower_entity: !input mower_entity
       dock_on_rain: !input dock_on_rain
       rain_now_sensor: !input rain_now_sensor
-      
+      enable_skip_today: !input enable_skip_today
+
+  - choose:
+        - conditions:
+            - condition: trigger
+              id: rain_check
+            - condition: template
+              value_template: >
+                {{ dock_on_rain
+                   and rain_now_sensor != ''
+                   and states(rain_now_sensor) | float(0) > 0 }}
+          sequence:
+            - action: lawn_mower.dock
+              target:
+                entity_id: !input mower_entity
+            - stop: "Mower docked because rain was detected."
+  
+        - conditions:
+            - condition: trigger
+              id: skip_today
+          sequence:
+            - variables:
+                today_name: >
+                  {{ ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][now().weekday()] }}
+            - action: indego.set_calendar_slot
+              data:
+                days: "{{ today_name }}"
+                slot: 1
+                enabled: false
+            - action: indego.set_calendar_slot
+              data:
+                days: "{{ today_name }}"
+                slot: 2
+                enabled: false
+            - action: lawn_mower.dock
+              target:
+                entity_id: !input mower_entity
+            - stop: "Today's Indego schedule was skipped."
+  
+        - conditions:
+            - condition: trigger
+              id: reset_skip_today
+          sequence:
+            - action: input_boolean.turn_off
+              target:
+                entity_id: !input skip_today_entity
+            - stop: "Skip today helper was reset."
+            
+  - condition: trigger
+    id: update_schedule
+    
   - action: weather.get_forecasts
     target:
       entity_id: !input weather_entity
@@ -498,51 +558,7 @@ actions:
         The Indego mowing schedule has changed:
 
         {{ change_summary }}
-  - choose:
-        - conditions:
-            - condition: trigger
-              id: rain_check
-            - condition: template
-              value_template: >
-                {{ dock_on_rain
-                   and rain_now_sensor != ''
-                   and states(rain_now_sensor) | float(0) > 0 }}
-          sequence:
-            - action: lawn_mower.dock
-              target:
-                entity_id: !input mower_entity
-            - stop: "Mower docked because rain was detected."
-  
-        - conditions:
-            - condition: trigger
-              id: skip_today
-          sequence:
-            - variables:
-                today_name: >
-                  {{ ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][now().weekday()] }}
-            - action: indego.set_calendar_slot
-              data:
-                days: "{{ today_name }}"
-                slot: 1
-                enabled: false
-            - action: indego.set_calendar_slot
-              data:
-                days: "{{ today_name }}"
-                slot: 2
-                enabled: false
-            - action: lawn_mower.dock
-              target:
-                entity_id: !input mower_entity
-            - stop: "Today's Indego schedule was skipped."
-  
-        - conditions:
-            - condition: trigger
-              id: reset_skip_today
-          sequence:
-            - action: input_boolean.turn_off
-              target:
-                entity_id: !input skip_today_entity
-            - stop: "Skip today helper was reset."
+
   - condition: template
     value_template: "{{ current_plan_key != last_plan_key }}"
 
@@ -554,14 +570,16 @@ actions:
             {% set today_name = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][now().weekday()] %}
             {% set is_today = repeat.item.day == today_name %}
             {% set after_day_end = now() >= today_at(day_end_input) %}
+            {% set skip_today =
+              enable_skip_today
+              and skip_today_entity != ''
+              and is_state(skip_today_entity, 'on')
+            %}
             {{ not (
               is_today
               and (
                 after_day_end
-                or (
-                  skip_today_entity != ''
-                  and is_state(skip_today_entity, 'on')
-                )
+                or skip_today
               )
             ) }}
 
