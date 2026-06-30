@@ -482,11 +482,11 @@ actions:
         {% set new_parts = current_plan_key.split('|') %}
         {% set ns = namespace(lines=[]) %}
         {% for new in new_parts %}
-          {% set day = new.split(':')[0] %}
+          {% set day = new.split(':', 1)[0] %}
           {% set old = old_parts | select('search', '^' ~ day ~ ':') | list | first | default('') %}
           {% if old != new %}
-            {% set old_value = old.split(':')[1] if ':' in old else 'none' %}
-            {% set new_value = new.split(':')[1] if ':' in new else 'none' %}
+            {% set old_value = old.split(':', 1)[1] if ':' in old else 'none' %}
+            {% set new_value = new.split(':', 1)[1] if ':' in new else 'none' %}
             {% set ns.lines = ns.lines + [day ~ ': ' ~ old_value ~ ' → ' ~ new_value] %}
           {% endif %}
         {% endfor %}
