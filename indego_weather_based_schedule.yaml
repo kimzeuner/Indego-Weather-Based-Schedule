@@ -537,7 +537,7 @@ actions:
         {% endfor %}
         {{ ns.lines | join('\n') }}
 
-      change_summary: >-
+      notification_changes: >-
         {% set old_parts = last_plan_key.split('|') if last_plan_key not in ['unknown', 'unavailable', ''] else [] %}
         {% set new_parts = current_plan_key.split('|') %}
         {% set ns = namespace(lines=[]) %}
@@ -552,12 +552,67 @@ actions:
         {% endfor %}
         {{ ns.lines | join('\n') }}
 
+      notification_day: >-
+        {% set old_parts = last_plan_key.split('|') if last_plan_key not in ['unknown', 'unavailable', ''] else [] %}
+        {% set new_parts = current_plan_key.split('|') %}
+        {% set ns = namespace(day='') %}
+        {% for new in new_parts %}
+          {% set day = new.split(':', 1)[0] %}
+          {% set old = old_parts | select('search', '^' ~ day ~ ':') | list | first | default('') %}
+          {% if ns.day == '' and old != new %}
+            {% set ns.day = day %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.day }}
+
+      notification_old: >-
+        {% set old_parts = last_plan_key.split('|') if last_plan_key not in ['unknown', 'unavailable', ''] else [] %}
+        {% set new_parts = current_plan_key.split('|') %}
+        {% set ns = namespace(value='') %}
+        {% for new in new_parts %}
+          {% set day = new.split(':', 1)[0] %}
+          {% set old = old_parts | select('search', '^' ~ day ~ ':') | list | first | default('') %}
+          {% if ns.value == '' and old != new %}
+            {% set ns.value = old.split(':', 1)[1] if ':' in old else 'none' %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.value }}
+
+      notification_new: >-
+        {% set old_parts = last_plan_key.split('|') if last_plan_key not in ['unknown', 'unavailable', ''] else [] %}
+        {% set new_parts = current_plan_key.split('|') %}
+        {% set ns = namespace(value='') %}
+        {% for new in new_parts %}
+          {% set day = new.split(':', 1)[0] %}
+          {% set old = old_parts | select('search', '^' ~ day ~ ':') | list | first | default('') %}
+          {% if ns.value == '' and old != new %}
+            {% set ns.value = new.split(':', 1)[1] if ':' in new else 'none' %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.value }}
+
+      notification_time: >-
+        {{ notification_old ~ ' → ' ~ notification_new }}
+
       notification_title: "Indego mowing schedule updated"
 
       notification_message: >-
-        The Indego mowing schedule has changed:
+        {{ notification_changes }}
 
-        {{ change_summary }}
+      change_summary: >-
+        {% set old_parts = last_plan_key.split('|') if last_plan_key not in ['unknown', 'unavailable', ''] else [] %}
+        {% set new_parts = current_plan_key.split('|') %}
+        {% set ns = namespace(lines=[]) %}
+        {% for new in new_parts %}
+          {% set day = new.split(':', 1)[0] %}
+          {% set old = old_parts | select('search', '^' ~ day ~ ':') | list | first | default('') %}
+          {% if old != new %}
+            {% set old_value = old.split(':', 1)[1] if ':' in old else 'none' %}
+            {% set new_value = new.split(':', 1)[1] if ':' in new else 'none' %}
+            {% set ns.lines = ns.lines + [day ~ ': ' ~ old_value ~ ' → ' ~ new_value] %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.lines | join('\n') }}
 
   - condition: template
     value_template: "{{ current_plan_key != last_plan_key }}"
