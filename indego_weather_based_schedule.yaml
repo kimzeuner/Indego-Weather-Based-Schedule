@@ -279,9 +279,25 @@ blueprint:
         notification_action:
           name: Notification Action
           description: >
-            Optional notification action that will be executed when the schedule
-            changes. You can use the variables {{ notification_title }} and
-            {{ notification_message }} inside this action.
+            Optional action that will be executed whenever the mowing schedule changes.
+        
+            Available template variables:
+        
+            • {{ notification_title }}
+              Default notification title.
+            • {{ notification_message }}
+              Human-readable summary of all detected changes.
+            • {{ notification_changes }}
+              List of all changed schedule entries.
+            • {{ notification_day }}
+              Day of the first detected change.
+            • {{ notification_old }}
+              Previous time slots for the first detected change.
+            • {{ notification_new }}
+              New time slots for the first detected change.
+            • {{ notification_time }}
+              Previous and new time slots combined
+              (e.g. 08:00-17:00,18:00-20:00 → 08:00-20:00,-).
           default: []
           selector:
             action:
