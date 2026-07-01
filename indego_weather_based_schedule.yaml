@@ -308,9 +308,6 @@ triggers:
   - trigger: time_pattern
     minutes: /30
     id: update_schedule
-  - trigger: homeassistant
-    event: start
-    id: update_schedule
   - trigger: time_pattern
     minutes: /10
     id: rain_check
