@@ -1,5 +1,5 @@
 blueprint:
-  name: Indego Weather-Based Mowing Schedule
+  name: Indego Weather-Based Mowing Schedule [BETA]
   description: "## Bosch Indego Weather-Based Mowing Schedule\n\n
     ⚠️ BOSCH INDEGO INTEGRATION REQUIRED\n
     https://github.com/sander1988/Indego/tree/develop\n\n
@@ -9,7 +9,7 @@ blueprint:
     The blueprint updates the Indego weekly schedule only when changes are
     detected, reducing unnecessary API calls.\n"
   domain: automation
-  source_url: https://raw.githubusercontent.com/kimzeuner/Indego-Weather-Based-Schedule/main/indego_weather_based_schedule.yaml
+  source_url: https://raw.githubusercontent.com/kimzeuner/Indego-Weather-Based-Schedule/add_sunrise_sunset/indego_weather_based_schedule.yaml
   author: kimzeuner
   homeassistant:
     min_version: "2025.1.0"
