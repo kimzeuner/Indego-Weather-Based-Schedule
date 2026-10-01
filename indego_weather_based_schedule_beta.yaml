@@ -144,6 +144,43 @@ blueprint:
                   value: fixed
                 - label: Sunrise
                   value: sunrise
+                  
+        sunrise_entity:
+          name: Sunrise Source Entity
+          description: >
+            Entity providing the sunrise date and time when "Sunrise" is selected
+            as the earliest mowing time mode.
+
+            The default Home Assistant source is sun.sun using the
+            "next_rising" attribute.
+
+            Custom sensor entities are also supported. The selected state or
+            attribute must contain a valid date and time that Home Assistant can
+            interpret as a datetime. ISO 8601 with timezone information is
+            recommended, for example: 2026-10-01T07:31:00+02:00.
+
+            If the source is unavailable or cannot be interpreted as a valid
+            datetime, the blueprint will fall back to the previously stored
+            mowing time boundary or the configured fixed time.
+          default: sun.sun
+          selector:
+            entity:
+              filter:
+                - domain: sun
+                - domain: sensor
+
+        sunrise_attribute:
+          name: Sunrise Attribute
+          description: >
+            Name of the attribute containing the sunrise datetime.
+
+            For the standard Home Assistant sun.sun entity use "next_rising".
+
+            Enter "state" if the selected entity itself contains the sunrise
+            datetime in its state, for example sensor.sunrise.
+          default: next_rising
+          selector:
+            text:
 
         day_start:
           name: Earliest Mowing Time
@@ -185,6 +222,43 @@ blueprint:
                   value: fixed
                 - label: Sunset
                   value: sunset
+
+        sunset_entity:
+          name: Sunset Source Entity
+          description: >
+            Entity providing the sunset date and time when "Sunset" is selected
+            as the latest mowing time mode.
+
+            The default Home Assistant source is sun.sun using the
+            "next_setting" attribute.
+
+            Custom sensor entities are also supported. The selected state or
+            attribute must contain a valid date and time that Home Assistant can
+            interpret as a datetime. ISO 8601 with timezone information is
+            recommended, for example: 2026-10-01T18:54:00+02:00.
+
+            If the source is unavailable or cannot be interpreted as a valid
+            datetime, the blueprint will fall back to the previously stored
+            mowing time boundary or the configured fixed time.
+          default: sun.sun
+          selector:
+            entity:
+              filter:
+                - domain: sun
+                - domain: sensor
+
+        sunset_attribute:
+          name: Sunset Attribute
+          description: >
+            Name of the attribute containing the sunset datetime.
+
+            For the standard Home Assistant sun.sun entity use "next_setting".
+
+            Enter "state" if the selected entity itself contains the sunset
+            datetime in its state, for example sensor.sunset.
+          default: next_setting
+          selector:
+            text:
 
         day_end:
           name: Latest Mowing Time
@@ -391,9 +465,13 @@ actions:
       skip_today_entity: !input skip_today_entity
       day_start_input: !input day_start
       day_start_mode: !input day_start_mode
+      sunrise_entity: !input sunrise_entity
+      sunrise_attribute: !input sunrise_attribute
       sunrise_offset: !input sunrise_offset
       day_end_input: !input day_end
       day_end_mode: !input day_end_mode
+      sunset_entity: !input sunset_entity
+      sunset_attribute: !input sunset_attribute
       sunset_offset: !input sunset_offset
       min_temperature: !input min_temperature
       max_temperature: !input max_temperature
@@ -469,21 +547,52 @@ actions:
   - variables:
       calculated_start_time: >-
         {% if day_start_mode == 'sunrise' %}
-          {% set sunrise = as_local(as_datetime(state_attr('sun.sun', 'next_rising'))) %}
-          {% if sunrise.date() == now().date() %}
-            {% set source = sunrise + timedelta(minutes=sunrise_offset | int(0)) %}
-            {% set minutes = source.hour * 60 + source.minute %}
-            {% set rounded = ((minutes + 9) // 10) * 10 %}
-            {{ '%02d:%02d' | format((rounded // 60) % 24, rounded % 60) }}
+          {% set sunrise_raw =
+            states(sunrise_entity)
+            if sunrise_attribute | lower == 'state'
+            else state_attr(sunrise_entity, sunrise_attribute)
+          %}
+
+          {% if sunrise_raw not in [none, '', 'unknown', 'unavailable'] %}
+            {% set sunrise = as_datetime(sunrise_raw, none) %}
+
+            {% if sunrise is not none %}
+              {% set sunrise = as_local(sunrise) %}
+
+              {% if sunrise.date() == now().date() %}
+                {% set source =
+                  sunrise + timedelta(minutes=sunrise_offset | int(0))
+                %}
+                {% set minutes = source.hour * 60 + source.minute %}
+                {% set rounded = ((minutes + 9) // 10) * 10 %}
+
+                {{ '%02d:%02d' | format(
+                  (rounded // 60) % 24,
+                  rounded % 60
+                ) }}
+              {% else %}
+                unavailable
+              {% endif %}
+            {% else %}
+              unavailable
+            {% endif %}
           {% else %}
             unavailable
           {% endif %}
         {% else %}
           {% set parts = day_start_input.split(':') %}
-          {% set minutes = (parts[0] | int) * 60 + (parts[1] | int) %}
+          {% set minutes =
+            (parts[0] | int(0)) * 60 +
+            (parts[1] | int(0))
+          %}
           {% set rounded = ((minutes + 9) // 10) * 10 %}
-          {{ '%02d:%02d' | format((rounded // 60) % 24, rounded % 60) }}
+
+          {{ '%02d:%02d' | format(
+            (rounded // 60) % 24,
+            rounded % 60
+          ) }}
         {% endif %}
+        
       fixed_start_time: >-
         {% set parts = day_start_input.split(':') %}
         {% set minutes = (parts[0] | int) * 60 + (parts[1] | int) %}
@@ -492,21 +601,52 @@ actions:
 
       calculated_end_time: >-
         {% if day_end_mode == 'sunset' %}
-          {% set sunset = as_local(as_datetime(state_attr('sun.sun', 'next_setting'))) %}
-          {% if sunset.date() == now().date() %}
-            {% set source = sunset + timedelta(minutes=sunset_offset | int(0)) %}
-            {% set minutes = source.hour * 60 + source.minute %}
-            {% set rounded = (minutes // 10) * 10 %}
-            {{ '%02d:%02d' | format((rounded // 60) % 24, rounded % 60) }}
+          {% set sunset_raw =
+            states(sunset_entity)
+            if sunset_attribute | lower == 'state'
+            else state_attr(sunset_entity, sunset_attribute)
+          %}
+
+          {% if sunset_raw not in [none, '', 'unknown', 'unavailable'] %}
+            {% set sunset = as_datetime(sunset_raw, none) %}
+
+            {% if sunset is not none %}
+              {% set sunset = as_local(sunset) %}
+
+              {% if sunset.date() == now().date() %}
+                {% set source =
+                  sunset + timedelta(minutes=sunset_offset | int(0))
+                %}
+                {% set minutes = source.hour * 60 + source.minute %}
+                {% set rounded = (minutes // 10) * 10 %}
+
+                {{ '%02d:%02d' | format(
+                  (rounded // 60) % 24,
+                  rounded % 60
+                ) }}
+              {% else %}
+                unavailable
+              {% endif %}
+            {% else %}
+              unavailable
+            {% endif %}
           {% else %}
             unavailable
           {% endif %}
         {% else %}
           {% set parts = day_end_input.split(':') %}
-          {% set minutes = (parts[0] | int) * 60 + (parts[1] | int) %}
+          {% set minutes =
+            (parts[0] | int(0)) * 60 +
+            (parts[1] | int(0))
+          %}
           {% set rounded = (minutes // 10) * 10 %}
-          {{ '%02d:%02d' | format((rounded // 60) % 24, rounded % 60) }}
+
+          {{ '%02d:%02d' | format(
+            (rounded // 60) % 24,
+            rounded % 60
+          ) }}
         {% endif %}
+        
       fixed_end_time: >-
         {% set parts = day_end_input.split(':') %}
         {% set minutes = (parts[0] | int) * 60 + (parts[1] | int) %}
