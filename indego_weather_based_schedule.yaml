@@ -512,19 +512,6 @@ actions:
         {% set minutes = (parts[0] | int) * 60 + (parts[1] | int) %}
         {% set rounded = (minutes // 10) * 10 %}
         {{ '%02d:%02d' | format((rounded // 60) % 24, rounded % 60) }}
-
-  - variables:
-      today_name: >-
-        {{ ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][now().weekday()] }}
-
-      stored_today_end: >-
-        {% if '@' in stored_today_key %}
-          {% set header = stored_today_key.split(':', 1)[0] %}
-          {% set parts = header.split('@') %}
-          {{ parts[2] if parts | count >= 3 else 'unavailable' }}
-        {% else %}
-          unavailable
-        {% endif %}
         
   - action: weather.get_forecasts
     target:
