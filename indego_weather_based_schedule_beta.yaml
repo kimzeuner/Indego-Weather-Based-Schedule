@@ -684,7 +684,7 @@ actions:
           %}
         
           {% if '@' in old_day %}
-            {% set old_header = old_day.split(':', 1)[0] %}
+            {% set old_header = old_day.split('#', 1)[0] %}
             {% set old_header_parts = old_header.split('@') %}
             {% set old_start =
               old_header_parts[1]
@@ -875,7 +875,7 @@ actions:
           {% set slot1 = slots[0] if slots | count > 0 else '-' %}
           {% set slot2 = slots[1] if slots | count > 1 else '-' %}
           {% set ns.parts = ns.parts + [
-            d.day ~ '@' ~ d.start ~ '@' ~ d.end ~ ':' ~ slot1 ~ ',' ~ slot2
+            d.day ~ '@' ~ d.start ~ '@' ~ d.end ~ '#' ~ slot1 ~ ',' ~ slot2
           ] %}
         {% endfor %}
         {{ ns.parts | join('|') }}
@@ -896,13 +896,25 @@ actions:
         {% set new_parts = current_plan_key.split('|') %}
         {% set ns = namespace(lines=[]) %}
         {% for new in new_parts %}
-          {% set header = new.split(':', 1)[0] %}
+          {% set header = new.split('#', 1)[0] %}
           {% set day = header.split('@')[0] %}
           {% set old = old_parts | select('search', '^' ~ day ~ '@') | list | first | default('') %}
+
           {% if old != new %}
-            {% set old_value = old.split(':', 1)[1] if ':' in old else 'none' %}
-            {% set new_value = new.split(':', 1)[1] if ':' in new else 'none' %}
-            {% set ns.lines = ns.lines + [day ~ ': ' ~ old_value ~ ' → ' ~ new_value] %}
+            {% set old_value =
+              old.split('#', 1)[1]
+              if '#' in old
+              else 'none'
+            %}
+            {% set new_value =
+              new.split('#', 1)[1]
+              if '#' in new
+              else 'none'
+            %}
+
+            {% set ns.lines = ns.lines + [
+              day ~ ': ' ~ old_value ~ ' → ' ~ new_value
+            ] %}
           {% endif %}
         {% endfor %}
         {{ ns.lines | join('\n') }}
@@ -912,7 +924,7 @@ actions:
         {% set new_parts = current_plan_key.split('|') %}
         {% set ns = namespace(day='') %}
         {% for new in new_parts %}
-          {% set header = new.split(':', 1)[0] %}
+          {% set header = new.split('#', 1)[0] %}
           {% set day = header.split('@')[0] %}
           {% set old = old_parts | select('search', '^' ~ day ~ '@') | list | first | default('') %}
           {% if ns.day == '' and old != new %}
@@ -926,11 +938,11 @@ actions:
         {% set new_parts = current_plan_key.split('|') %}
         {% set ns = namespace(value='') %}
         {% for new in new_parts %}
-          {% set header = new.split(':', 1)[0] %}
+          {% set header = new.split('#', 1)[0] %}
           {% set day = header.split('@')[0] %}
           {% set old = old_parts | select('search', '^' ~ day ~ '@') | list | first | default('') %}
           {% if ns.value == '' and old != new %}
-            {% set ns.value = old.split(':', 1)[1] if ':' in old else 'none' %}
+            {% set ns.value = old.split('#', 1)[1] if '#' in old else 'none' %}
           {% endif %}
         {% endfor %}
         {{ ns.value }}
@@ -940,11 +952,11 @@ actions:
         {% set new_parts = current_plan_key.split('|') %}
         {% set ns = namespace(value='') %}
         {% for new in new_parts %}
-          {% set header = new.split(':', 1)[0] %}
+          {% set header = new.split('#', 1)[0] %}
           {% set day = header.split('@')[0] %}
           {% set old = old_parts | select('search', '^' ~ day ~ '@') | list | first | default('') %}
           {% if ns.value == '' and old != new %}
-            {% set ns.value = new.split(':', 1)[1] if ':' in new else 'none' %}
+            {% set ns.value = new.split('#', 1)[1] if '#' in new else 'none' %}
           {% endif %}
         {% endfor %}
         {{ ns.value }}
@@ -972,7 +984,7 @@ actions:
             slot2: "{{ slots[1] if slots | count > 1 else '' }}"
 
             new_day_key: >-
-              {{ day_name }}@{{ day_start }}@{{ day_end }}:{{ slot1 if slot1 != '' else '-' }},{{ slot2 if slot2 != '' else '-' }}
+              {{ day_name }}@{{ day_start }}@{{ day_end }}#{{ slot1 if slot1 != '' else '-' }},{{ slot2 if slot2 != '' else '-' }}
 
             old_day_key: >-
               {% set old_parts = last_plan_key.split('|')
