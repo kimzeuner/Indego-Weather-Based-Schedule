@@ -1,5 +1,5 @@
 blueprint:
-  name: Indego Weather-Based Mowing Schedule
+  name: Indego Weather-Based Mowing Schedule [BETA]
   description: "## Bosch Indego Weather-Based Mowing Schedule\n\n
     ⚠️ BOSCH INDEGO INTEGRATION REQUIRED\n
     https://github.com/sander1988/Indego/tree/develop\n\n
@@ -9,7 +9,7 @@ blueprint:
     The blueprint updates the Indego weekly schedule only when changes are
     detected, reducing unnecessary API calls.\n"
   domain: automation
-  source_url: https://raw.githubusercontent.com/kimzeuner/Indego-Weather-Based-Schedule/main/indego_weather_based_schedule.yaml
+  source_url: https://raw.githubusercontent.com/kimzeuner/Indego-Weather-Based-Schedule/add_sunrise_sunset/indego_weather_based_schedule_beta.yaml
   author: kimzeuner
   homeassistant:
     min_version: "2025.1.0"
@@ -131,23 +131,161 @@ blueprint:
       name: ⏱️ Scheduling
       collapsed: true
       input:
-        day_start:
-          name: ⏱️ Earliest Mowing Time
+        day_start_mode:
+          name: Earliest Mowing Time Mode
           description: >
-            Beginning of the daily time window in which mowing may be scheduled.
-            Forecast data outside this period will be ignored.
+            Choose whether the earliest mowing time should use a fixed time
+            or the local sunrise time.
+          default: fixed
+          selector:
+            select:
+              options:
+                - label: Fixed time
+                  value: fixed
+                - label: Sunrise
+                  value: sunrise
+                  
+        sunrise_entity:
+          name: Sunrise Source Entity
+          description: >
+            Entity providing the sunrise date and time when "Sunrise" is selected
+            as the earliest mowing time mode.
+
+            The default Home Assistant source is sun.sun using the
+            "next_rising" attribute.
+
+            Custom sensor entities are also supported. The selected state or
+            attribute must contain a valid date and time that Home Assistant can
+            interpret as a datetime. ISO 8601 with timezone information is
+            recommended, for example: 2026-10-01T07:31:00+02:00.
+
+            If the source is unavailable or cannot be interpreted as a valid
+            datetime, the blueprint will fall back to the previously stored
+            mowing time boundary or the configured fixed time.
+          default: sun.sun
+          selector:
+            entity:
+              filter:
+                - domain: sun
+                - domain: sensor
+
+        sunrise_attribute:
+          name: Sunrise Attribute
+          description: >
+            Name of the attribute containing the sunrise datetime.
+
+            For the standard Home Assistant sun.sun entity use "next_rising".
+
+            Enter "state" if the selected entity itself contains the sunrise
+            datetime in its state, for example sensor.sunrise.
+          default: next_rising
+          selector:
+            text:
+
+        day_start:
+          name: Earliest Mowing Time
+          description: >
+            Fixed earliest mowing time. Used when "Fixed time" is selected.
+            The final start time is automatically rounded UP to the next
+            10-minute interval supported by the Bosch Indego calendar.
+            Example: 08:13 → 08:20.
           default: "08:00:00"
           selector:
             time:
-    
-        day_end:
-          name: ⏱️ Latest Mowing Time
+
+        sunrise_offset:
+          name: Sunrise Offset
           description: >
-            End of the daily time window in which mowing may be scheduled.
-            Forecast data outside this period will be ignored.
+            Offset in minutes relative to sunrise.
+            Positive values start after sunrise and negative values before sunrise.
+            Example: 30 means 30 minutes after sunrise.
+            The resulting time is automatically rounded UP to the next
+            10-minute interval.
+          default: 0
+          selector:
+            number:
+              min: -120
+              max: 120
+              step: 5
+              unit_of_measurement: min
+
+        day_end_mode:
+          name: Latest Mowing Time Mode
+          description: >
+            Choose whether the latest mowing time should use a fixed time
+            or the local sunset time.
+          default: fixed
+          selector:
+            select:
+              options:
+                - label: Fixed time
+                  value: fixed
+                - label: Sunset
+                  value: sunset
+
+        sunset_entity:
+          name: Sunset Source Entity
+          description: >
+            Entity providing the sunset date and time when "Sunset" is selected
+            as the latest mowing time mode.
+
+            The default Home Assistant source is sun.sun using the
+            "next_setting" attribute.
+
+            Custom sensor entities are also supported. The selected state or
+            attribute must contain a valid date and time that Home Assistant can
+            interpret as a datetime. ISO 8601 with timezone information is
+            recommended, for example: 2026-10-01T18:54:00+02:00.
+
+            If the source is unavailable or cannot be interpreted as a valid
+            datetime, the blueprint will fall back to the previously stored
+            mowing time boundary or the configured fixed time.
+          default: sun.sun
+          selector:
+            entity:
+              filter:
+                - domain: sun
+                - domain: sensor
+
+        sunset_attribute:
+          name: Sunset Attribute
+          description: >
+            Name of the attribute containing the sunset datetime.
+
+            For the standard Home Assistant sun.sun entity use "next_setting".
+
+            Enter "state" if the selected entity itself contains the sunset
+            datetime in its state, for example sensor.sunset.
+          default: next_setting
+          selector:
+            text:
+
+        day_end:
+          name: Latest Mowing Time
+          description: >
+            Fixed latest mowing time. Used when "Fixed time" is selected.
+            The final end time is automatically rounded DOWN to the previous
+            10-minute interval supported by the Bosch Indego calendar.
+            Example: 18:17 → 18:10.
           default: "20:00:00"
           selector:
             time:
+
+        sunset_offset:
+          name: Sunset Offset
+          description: >
+            Offset in minutes relative to sunset.
+            Positive values end after sunset and negative values before sunset.
+            Example: -30 means 30 minutes before sunset.
+            The resulting time is automatically rounded DOWN to the previous
+            10-minute interval.
+          default: 0
+          selector:
+            number:
+              min: -120
+              max: 120
+              step: 5
+              unit_of_measurement: min
 
         enable_skip_today:
           name: Enable Skip Today's Schedule
@@ -318,8 +456,7 @@ triggers:
     enabled: !input enable_skip_today
   - trigger: time
     at: "00:05:00"
-    id: reset_skip_today
-    enabled: !input enable_skip_today
+    id: new_day
 
 actions:
   - variables:
@@ -327,7 +464,15 @@ actions:
       last_applied_plan_entity: !input last_applied_plan_entity
       skip_today_entity: !input skip_today_entity
       day_start_input: !input day_start
+      day_start_mode: !input day_start_mode
+      sunrise_entity: !input sunrise_entity
+      sunrise_attribute: !input sunrise_attribute
+      sunrise_offset: !input sunrise_offset
       day_end_input: !input day_end
+      day_end_mode: !input day_end_mode
+      sunset_entity: !input sunset_entity
+      sunset_attribute: !input sunset_attribute
+      sunset_offset: !input sunset_offset
       min_temperature: !input min_temperature
       max_temperature: !input max_temperature
       max_precipitation: !input max_precipitation
@@ -384,16 +529,130 @@ actions:
   
         - conditions:
             - condition: trigger
-              id: reset_skip_today
+              id: new_day
+            - condition: template
+              value_template: >
+                {{ enable_skip_today
+                   and skip_today_entity != ''
+                   and is_state(skip_today_entity, 'on') }}
           sequence:
             - action: input_boolean.turn_off
               target:
                 entity_id: !input skip_today_entity
-            - stop: "Skip today helper was reset."
             
-  - condition: trigger
-    id: update_schedule
+  - condition: template
+    value_template: >
+      {{ trigger.id in ['update_schedule', 'new_day'] }}
     
+  - variables:
+      calculated_start_time: >-
+        {% if day_start_mode == 'sunrise' %}
+          {% set sunrise_raw =
+            states(sunrise_entity)
+            if sunrise_attribute | lower == 'state'
+            else state_attr(sunrise_entity, sunrise_attribute)
+          %}
+
+          {% if sunrise_raw not in [none, '', 'unknown', 'unavailable'] %}
+            {% set sunrise = as_datetime(sunrise_raw, none) %}
+
+            {% if sunrise is not none %}
+              {% set sunrise = as_local(sunrise) %}
+
+              {% if sunrise.date() == now().date() %}
+                {% set source =
+                  sunrise + timedelta(minutes=sunrise_offset | int(0))
+                %}
+                {% set minutes = source.hour * 60 + source.minute %}
+                {% set rounded = ((minutes + 9) // 10) * 10 %}
+
+                {{ '%02d:%02d' | format(
+                  (rounded // 60) % 24,
+                  rounded % 60
+                ) }}
+              {% else %}
+                unavailable
+              {% endif %}
+            {% else %}
+              unavailable
+            {% endif %}
+          {% else %}
+            unavailable
+          {% endif %}
+        {% else %}
+          {% set parts = day_start_input.split(':') %}
+          {% set minutes =
+            (parts[0] | int(0)) * 60 +
+            (parts[1] | int(0))
+          %}
+          {% set rounded = ((minutes + 9) // 10) * 10 %}
+
+          {{ '%02d:%02d' | format(
+            (rounded // 60) % 24,
+            rounded % 60
+          ) }}
+        {% endif %}
+        
+      fixed_start_time: >-
+        {% set parts = day_start_input.split(':') %}
+        {% set minutes = (parts[0] | int) * 60 + (parts[1] | int) %}
+        {% set rounded = ((minutes + 9) // 10) * 10 %}
+        {{ '%02d:%02d' | format((rounded // 60) % 24, rounded % 60) }}
+
+      calculated_end_time: >-
+        {% if day_end_mode == 'sunset' %}
+          {% set sunset_raw =
+            states(sunset_entity)
+            if sunset_attribute | lower == 'state'
+            else state_attr(sunset_entity, sunset_attribute)
+          %}
+
+          {% if sunset_raw not in [none, '', 'unknown', 'unavailable'] %}
+            {% set sunset = as_datetime(sunset_raw, none) %}
+
+            {% if sunset is not none %}
+              {% set sunset = as_local(sunset) %}
+
+              {% if sunset.date() == now().date() %}
+                {% set source =
+                  sunset + timedelta(minutes=sunset_offset | int(0))
+                %}
+                {% set minutes = source.hour * 60 + source.minute %}
+                {% set rounded = (minutes // 10) * 10 %}
+
+                {{ '%02d:%02d' | format(
+                  (rounded // 60) % 24,
+                  rounded % 60
+                ) }}
+              {% else %}
+                unavailable
+              {% endif %}
+            {% else %}
+              unavailable
+            {% endif %}
+          {% else %}
+            unavailable
+          {% endif %}
+        {% else %}
+          {% set parts = day_end_input.split(':') %}
+          {% set minutes =
+            (parts[0] | int(0)) * 60 +
+            (parts[1] | int(0))
+          %}
+          {% set rounded = (minutes // 10) * 10 %}
+
+          {{ '%02d:%02d' | format(
+            (rounded // 60) % 24,
+            rounded % 60
+          ) }}
+        {% endif %}
+        
+      fixed_end_time: >-
+        {% set parts = day_end_input.split(':') %}
+        {% set minutes = (parts[0] | int) * 60 + (parts[1] | int) %}
+        {% set rounded = (minutes // 10) * 10 %}
+        {{ '%02d:%02d' | format((rounded // 60) % 24, rounded % 60) }}
+        
   - action: weather.get_forecasts
     target:
       entity_id: !input weather_entity
@@ -408,9 +667,84 @@ actions:
         {% set ns = namespace(plan=[]) %}
 
         {% for offset in range(0, 7) %}
-          {% set day_start = today_at(day_start_input) + timedelta(days=offset) %}
-          {% set day_end = today_at(day_end_input) + timedelta(days=offset) %}
           {% set day_name = weekdays[(now().weekday() + offset) % 7] %}
+        
+          {% set old_parts =
+            states(last_applied_plan_entity).split('|')
+            if states(last_applied_plan_entity) not in ['unknown', 'unavailable', '']
+            else []
+          %}
+        
+          {% set old_day =
+            old_parts
+            | select('search', '^' ~ day_name ~ '@')
+            | list
+            | first
+            | default('')
+          %}
+        
+          {% if '@' in old_day %}
+            {% set old_header = old_day.split('#', 1)[0] %}
+            {% set old_header_parts = old_header.split('@') %}
+            {% set old_start =
+              old_header_parts[1]
+              if old_header_parts | count >= 3
+              else 'unavailable'
+            %}
+            {% set old_end =
+              old_header_parts[2]
+              if old_header_parts | count >= 3
+              else 'unavailable'
+            %}
+          {% else %}
+            {% set old_start = 'unavailable' %}
+            {% set old_end = 'unavailable' %}
+          {% endif %}
+        
+          {% if offset == 0 %}
+            {% set effective_start =
+              calculated_start_time
+              if calculated_start_time != 'unavailable'
+              else (
+                old_start
+                if old_start != 'unavailable'
+                else fixed_start_time
+              )
+            %}
+        
+            {% set effective_end =
+              calculated_end_time
+              if calculated_end_time != 'unavailable'
+              else (
+                old_end
+                if old_end != 'unavailable'
+                else fixed_end_time
+              )
+            %}
+          {% else %}
+            {% set effective_start =
+              old_start
+              if old_start != 'unavailable'
+              else (
+                calculated_start_time
+                if calculated_start_time != 'unavailable'
+                else fixed_start_time
+              )
+            %}
+        
+            {% set effective_end =
+              old_end
+              if old_end != 'unavailable'
+              else (
+                calculated_end_time
+                if calculated_end_time != 'unavailable'
+                else fixed_end_time
+              )
+            %}
+          {% endif %}
+          
+          {% set day_start = today_at(effective_start) + timedelta(days=offset) %}
+          {% set day_end = today_at(effective_end) + timedelta(days=offset) %}
           {% set s = namespace(in_slot=false, start='', start_ts=0, slots=[]) %}
 
           {% if offset == 0 %}
@@ -419,7 +753,7 @@ actions:
               {% set first_dt = as_local(as_datetime(first_fc.datetime)) %}
               {% if first_dt > day_start and first_dt < day_end %}
                 {% set s.in_slot = true %}
-                {% set s.start = day_start_input[:5] %}
+                {% set s.start = effective_start %}
                 {% set s.start_ts = as_timestamp(day_start) %}
               {% endif %}
             {% endif %}
@@ -520,11 +854,16 @@ actions:
           {% if s.in_slot %}
             {% set duration = as_timestamp(day_end) - s.start_ts %}
             {% if duration >= 7200 %}
-              {% set s.slots = s.slots + [s.start ~ '-' ~ day_end_input[:5]] %}
+              {% set s.slots = s.slots + [s.start ~ '-' ~ effective_end] %}
             {% endif %}
           {% endif %}
 
-          {% set ns.plan = ns.plan + [{'day': day_name, 'slots': s.slots[:2]}] %}
+          {% set ns.plan = ns.plan + [{
+            'day': day_name,
+            'start': effective_start,
+            'end': effective_end,
+            'slots': s.slots[:2]
+          }] %}
         {% endfor %}
 
         {{ ns.plan }}
@@ -535,7 +874,9 @@ actions:
           {% set slots = d.slots %}
           {% set slot1 = slots[0] if slots | count > 0 else '-' %}
           {% set slot2 = slots[1] if slots | count > 1 else '-' %}
-          {% set ns.parts = ns.parts + [d.day ~ ':' ~ slot1 ~ ',' ~ slot2] %}
+          {% set ns.parts = ns.parts + [
+            d.day ~ '@' ~ d.start ~ '@' ~ d.end ~ '#' ~ slot1 ~ ',' ~ slot2
+          ] %}
         {% endfor %}
         {{ ns.parts | join('|') }}
 
@@ -555,12 +896,25 @@ actions:
         {% set new_parts = current_plan_key.split('|') %}
         {% set ns = namespace(lines=[]) %}
         {% for new in new_parts %}
-          {% set day = new.split(':', 1)[0] %}
-          {% set old = old_parts | select('search', '^' ~ day ~ ':') | list | first | default('') %}
+          {% set header = new.split('#', 1)[0] %}
+          {% set day = header.split('@')[0] %}
+          {% set old = old_parts | select('search', '^' ~ day ~ '@') | list | first | default('') %}
+
           {% if old != new %}
-            {% set old_value = old.split(':', 1)[1] if ':' in old else 'none' %}
-            {% set new_value = new.split(':', 1)[1] if ':' in new else 'none' %}
-            {% set ns.lines = ns.lines + [day ~ ': ' ~ old_value ~ ' → ' ~ new_value] %}
+            {% set old_value =
+              old.split('#', 1)[1]
+              if '#' in old
+              else 'none'
+            %}
+            {% set new_value =
+              new.split('#', 1)[1]
+              if '#' in new
+              else 'none'
+            %}
+
+            {% set ns.lines = ns.lines + [
+              day ~ ': ' ~ old_value ~ ' → ' ~ new_value
+            ] %}
           {% endif %}
         {% endfor %}
         {{ ns.lines | join('\n') }}
@@ -570,8 +924,9 @@ actions:
         {% set new_parts = current_plan_key.split('|') %}
         {% set ns = namespace(day='') %}
         {% for new in new_parts %}
-          {% set day = new.split(':', 1)[0] %}
-          {% set old = old_parts | select('search', '^' ~ day ~ ':') | list | first | default('') %}
+          {% set header = new.split('#', 1)[0] %}
+          {% set day = header.split('@')[0] %}
+          {% set old = old_parts | select('search', '^' ~ day ~ '@') | list | first | default('') %}
           {% if ns.day == '' and old != new %}
             {% set ns.day = day %}
           {% endif %}
@@ -583,10 +938,11 @@ actions:
         {% set new_parts = current_plan_key.split('|') %}
         {% set ns = namespace(value='') %}
         {% for new in new_parts %}
-          {% set day = new.split(':', 1)[0] %}
-          {% set old = old_parts | select('search', '^' ~ day ~ ':') | list | first | default('') %}
+          {% set header = new.split('#', 1)[0] %}
+          {% set day = header.split('@')[0] %}
+          {% set old = old_parts | select('search', '^' ~ day ~ '@') | list | first | default('') %}
           {% if ns.value == '' and old != new %}
-            {% set ns.value = old.split(':', 1)[1] if ':' in old else 'none' %}
+            {% set ns.value = old.split('#', 1)[1] if '#' in old else 'none' %}
           {% endif %}
         {% endfor %}
         {{ ns.value }}
@@ -596,10 +952,11 @@ actions:
         {% set new_parts = current_plan_key.split('|') %}
         {% set ns = namespace(value='') %}
         {% for new in new_parts %}
-          {% set day = new.split(':', 1)[0] %}
-          {% set old = old_parts | select('search', '^' ~ day ~ ':') | list | first | default('') %}
+          {% set header = new.split('#', 1)[0] %}
+          {% set day = header.split('@')[0] %}
+          {% set old = old_parts | select('search', '^' ~ day ~ '@') | list | first | default('') %}
           {% if ns.value == '' and old != new %}
-            {% set ns.value = new.split(':', 1)[1] if ':' in new else 'none' %}
+            {% set ns.value = new.split('#', 1)[1] if '#' in new else 'none' %}
           {% endif %}
         {% endfor %}
         {{ ns.value }}
@@ -620,19 +977,21 @@ actions:
       sequence:
         - variables:
             day_name: "{{ repeat.item.day }}"
+            day_start: "{{ repeat.item.start }}"
+            day_end: "{{ repeat.item.end }}"
             slots: "{{ repeat.item.slots }}"
             slot1: "{{ slots[0] if slots | count > 0 else '' }}"
             slot2: "{{ slots[1] if slots | count > 1 else '' }}"
 
             new_day_key: >-
-              {{ day_name }}:{{ slot1 if slot1 != '' else '-' }},{{ slot2 if slot2 != '' else '-' }}
+              {{ day_name }}@{{ day_start }}@{{ day_end }}#{{ slot1 if slot1 != '' else '-' }},{{ slot2 if slot2 != '' else '-' }}
 
             old_day_key: >-
               {% set old_parts = last_plan_key.split('|')
                  if last_plan_key not in ['unknown', 'unavailable', '']
                  else [] %}
               {{ old_parts
-                 | select('search', '^' ~ day_name ~ ':')
+                 | select('search', '^' ~ day_name ~ '@')
                  | list
                  | first
                  | default('') }}
@@ -650,7 +1009,10 @@ actions:
               ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][now().weekday()]
             %}
             {% set is_today = day_name == today_name %}
-            {% set after_day_end = now() >= today_at(day_end_input) %}
+            {% set after_day_end =
+              is_today
+              and now() >= today_at(day_end)
+            %}
             {% set skip_today =
               enable_skip_today
               and skip_today_entity != ''
@@ -669,8 +1031,8 @@ actions:
             days: "{{ day_name }}"
             slot: 1
             enabled: "{{ slot1 != '' }}"
-            start: "{{ slot1.split('-')[0] if slot1 != '' else day_start_input[:5] }}"
-            end: "{{ slot1.split('-')[1] if slot1 != '' else day_end_input[:5] }}"
+            start: "{{ slot1.split('-')[0] if slot1 != '' else '08:00' }}"
+            end: "{{ slot1.split('-')[1] if slot1 != '' else '20:00' }}"
 
         - delay:
             seconds: 2
@@ -680,8 +1042,8 @@ actions:
             days: "{{ day_name }}"
             slot: 2
             enabled: "{{ slot2 != '' }}"
-            start: "{{ slot2.split('-')[0] if slot2 != '' else day_start_input[:5] }}"
-            end: "{{ slot2.split('-')[1] if slot2 != '' else day_end_input[:5] }}"
+            start: "{{ slot2.split('-')[0] if slot2 != '' else '08:00' }}"
+            end: "{{ slot2.split('-')[1] if slot2 != '' else '20:00' }}"
 
         - delay:
             seconds: 2
